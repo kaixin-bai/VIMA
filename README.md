@@ -116,6 +116,10 @@ git checkout testing-and-notes
 pip install -e .
 ```
 
+## 效果测试
+```bash
+python3 scripts/example.py --ckpt=/data/net/dl_data/ProjectDatasets_bkx/VIMA_pretrained_models/20M.ckpt --device=cpu --partition=placement_generalization --task=visual_manipulation
+```
 
 
 # 遇到的问题和解决方法
@@ -157,3 +161,4 @@ hint: See above for details.
 # https://blog.csdn.net/weixin_60245579/article/details/131013371
 pip install setuptools==57.5.0  # csdn上提供的方法 
 ```
+
