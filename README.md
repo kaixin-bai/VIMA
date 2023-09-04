@@ -118,7 +118,7 @@ pip install -e .
 
 ## 效果测试
 ```bash
-python3 scripts/example.py --ckpt=/data/net/dl_data/ProjectDatasets_bkx/VIMA_pretrained_models/20M.ckpt --device=cpu --partition=placement_generalization --task=visual_manipulation
+python3 scripts/example.py --ckpt=data/net/dl_data/ProjectDatasets_bkx/VIMA_pretrained_models/20M.ckpt --device=cpu --partition=placement_generalization --task=visual_manipulation
 ```
 
 
