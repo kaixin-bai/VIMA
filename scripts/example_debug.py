@@ -15,9 +15,7 @@ from gym import Wrapper
 import torch
 import argparse
 
-
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
-
 
 _kwargs = {
     "single_word": True,
@@ -101,20 +99,103 @@ def main(cfg):
         env.global_seed = seed
 
         obs = env.reset()
+
+        # ==============================================================================================================
+        # ============= bkx debug ======================================================================================
+        """
+        可视化obs
+        """
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(221)
+        plt.title('segm.front')
+        plt.axis('OFF')
+        plt.imshow(obs['segm']['front'])
+        plt.subplot(222)
+        plt.title('segm.top')
+        plt.axis('OFF')
+        plt.imshow(obs['segm']['top'])
+        plt.subplot(223)
+        plt.title('rgb.front')
+        plt.axis('OFF')
+        plt.imshow(obs['rgb']['front'].transpose(1, 2, 0))
+        plt.subplot(224)
+        plt.title('rgb.top')
+        plt.axis('OFF')
+        plt.imshow(obs['rgb']['top'].transpose(1, 2, 0))
+        # plt.show()
+        # ============= bkx debug ======================================================================================
+        # ==============================================================================================================
+
         env.render()
 
-        meta_info = env.meta_info
-        prompt = env.prompt
+        meta_info = env.meta_info  # {'end_effector_type': 'suction', 'n_objects': 3, 'difficulty': 'easy', 'views': ['front', 'top'], 'modalities': ['segm', 'rgb'], 'seed': 42, 'action_bounds': {'low': array([ 0.25, -0.5 ], dtype=float32), 'high': array([0.75, 0.5 ], dtype=float32)}, 'robot_components': [2, 3, 4], 'obj_id_to_info': {5: {'obj_name': 'container', 'obj_assets': 'container/container-template.urdf', 'obj_size_range': SizeRange(low=(0.15, 0.15, 0.05), high=(0.17, 0.17, 0.05)), 'obj_from_template': True, 'obj_replace_fn': <function container_replace_fn at 0x7f15cc4b04c0>, 'obj_pose_transform_fn': None, 'obj_alias': None, 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': None, 'obj_profile': <ProfilePedia.SQUARE_LIKE: 0>, 'texture_name': 'purple', 'texture_color_value': (0.6901960784313725, 0.47843137254901963, 0.6313725490196078), 'texture_texture_asset': None, 'texture_alias': None, 'texture_novel_name': None}, 6: {'obj_name': 'block', 'obj_assets': 'stacking/block.urdf', 'obj_size_range': SizeRange(low=(0.07, 0.07, 0.07), high=(0.07, 0.07, 0.07)), 'obj_from_template': True, 'obj_replace_fn': None, 'obj_pose_transform_fn': None, 'obj_alias': ['cube'], 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': 0.7853981633974483, 'obj_profile': <ProfilePedia.SQUARE_LIKE: 0>, 'texture_name': 'red swirl', 'texture_color_value': None, 'texture_texture_asset': '/home/kb/gpu02_project/VIMA/VIMABench/vima_bench/tasks/assets/textures/swirls/red_swirl.jpg', 'texture_alias': None, 'texture_novel_name': None}, 7: {'obj_name': 'bowl', 'obj_assets': 'bowl/bowl.urdf', 'obj_size_range': SizeRange(low=(0.17, 0.17, 0), high=(0.17, 0.17, 0)), 'obj_from_template': False, 'obj_replace_fn': None, 'obj_pose_transform_fn': None, 'obj_alias': None, 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': 0, 'obj_profile': <ProfilePedia.CIRCLE_LIKE: 1>, 'texture_name': 'yellow', 'texture_color_value': (0.9294117647058824, 0.788235294117647, 0.2823529411764706), 'texture_texture_asset': None, 'texture_alias': None, 'texture_novel_name': None}}}
+        prompt = env.prompt  # 一个例子：{str}'Put the {dragged_obj_1} into the {base_obj}.'
         prompt_assets = env.prompt_assets
+
+        # ==============================================================================================================
+        # ============= bkx debug ======================================================================================
+        """
+        可视化prompt_assets中的内容，为什么prompt_assets和上面的图像对不上？
+        """
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(241)
+        plt.title('base_obj.rgb.front')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['base_obj']['rgb']['front'].transpose(1, 2, 0))
+        plt.subplot(242)
+        plt.title('base_obj.rgb.top')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['base_obj']['rgb']['top'].transpose(1, 2, 0))
+        plt.subplot(243)
+        plt.title('base_obj.segm.front')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['base_obj']['segm']['front'])
+        plt.subplot(244)
+        plt.title('base_obj.segm.top')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['base_obj']['segm']['top'])
+        plt.subplot(245)
+        plt.title('dragged_obj_1.rgb.front')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['dragged_obj_1']['rgb']['front'].transpose(1, 2, 0))
+        plt.subplot(246)
+        plt.title('dragged_obj_1.rgb.top')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['dragged_obj_1']['rgb']['top'].transpose(1, 2, 0))
+        plt.subplot(247)
+        plt.title('dragged_obj_1.segm.front')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['dragged_obj_1']['segm']['front'])
+        plt.subplot(248)
+        plt.title('dragged_obj_1.segm.top')
+        plt.axis('OFF')
+        plt.imshow(prompt_assets['dragged_obj_1']['segm']['top'])
+        plt.show()
+        # ============= bkx debug ======================================================================================
+        # ==============================================================================================================
+
         elapsed_steps = 0
         inference_cache = {}
         while True:
             if elapsed_steps == 0:
+                # todo: prepare_prompt这个函数在做什么
+                """
+                prompt: str, 'Put the {dragged_obj_1} into the {base_obj}.'
+                prompt_assets: 这是个字典，key有两个，分别是'base_obj'和'dragged_obj_1'，'base_obj'是箱子盒子，'dragged_obj_1'是要放到箱子里的物体
+                               每个key下面又是三个字典，其中key为'placeholder_type'的value为'object'
+                                                    key为'rgb'和'segm'的下面有两个图分别是'front'和'top'，rgb为3通道的图像，segm为单通道的图像
+                               在'base_obj'-'segm'下面又多了个'obj_info'，内容为：{'obj_id': 0, 'obj_name': 'container', 'obj_color': 'purple'}
+                               在'dragged_obj_1'-'segm'下面的'obj_info'，内容为：{'obj_id': 0, 'obj_name': 'block', 'obj_color': 'red swirl'}
+                """
+                print("debug prompt: {}".format(prompt))
                 prompt_token_type, word_batch, image_batch = prepare_prompt(
                     prompt=prompt, prompt_assets=prompt_assets, views=["front", "top"]
                 )
                 word_batch = word_batch.to(cfg.device)
                 image_batch = image_batch.to_torch_tensor(device=cfg.device)
+                # todo: forward_prompt_assembly这个函数的作用，输入和输出
                 prompt_tokens, prompt_masks = policy.forward_prompt_assembly(
                     (prompt_token_type, word_batch, image_batch)
                 )
@@ -192,10 +273,12 @@ def main(cfg):
                 0
             )  # (1, B, E)
             dist_dict = policy.forward_action_decoder(predicted_action_tokens)
+            # todo: actions里面东西的物理含义，position和rotation是什么坐标系下的
             actions = {k: v.mode() for k, v in dist_dict.items()}
             action_tokens = policy.forward_action_token(actions)  # (1, B, E)
             action_tokens = action_tokens.squeeze(0)  # (B, E)
             inference_cache["action_tokens"].append(action_tokens[0])
+            # todo: 这个函数在做什么
             actions = policy._de_discretize_actions(actions)
             action_bounds = [meta_info["action_bounds"]]
             action_bounds_low = [action_bound["low"] for action_bound in action_bounds]
@@ -211,12 +294,12 @@ def main(cfg):
                 action_bounds_high, dtype=torch.float32, device=cfg.device
             )
             actions["pose0_position"] = (
-                actions["pose0_position"] * (action_bounds_high - action_bounds_low)
-                + action_bounds_low
+                    actions["pose0_position"] * (action_bounds_high - action_bounds_low)
+                    + action_bounds_low
             )
             actions["pose1_position"] = (
-                actions["pose1_position"] * (action_bounds_high - action_bounds_low)
-                + action_bounds_low
+                    actions["pose1_position"] * (action_bounds_high - action_bounds_low)
+                    + action_bounds_low
             )
             actions["pose0_position"] = torch.clamp(
                 actions["pose0_position"], min=action_bounds_low, max=action_bounds_high
@@ -234,32 +317,48 @@ def main(cfg):
             )
             actions = {k: v.cpu().numpy() for k, v in actions.items()}
             actions = any_slice(actions, np.s_[0, 0])
-            input()
+            # 动作是在下面这行被执行的，todo: 看actions在step中是如何被使用的
             obs, _, done, info = env.step(actions)
-            input()
             elapsed_steps += 1
             if done:
                 break
 
 
 def prepare_prompt(*, prompt: str, prompt_assets: dict, views: list[str]):
-    views = sorted(views)
-    encoding = tokenizer.encode(prompt, add_special_tokens=True)
-    prompt_ids, prompt_tokens = encoding.ids, encoding.tokens
+    """
+    输入
+    prompt是个str:'Put the {dragged_obj_1} into the {base_obj}.'
+    prompt_assets: 字典，里面有两个元素'base_obj'和'dragged_obj_1'.
+            每个元素里面又有三个元素，分别是
+                    'rgb': 里面是三通道的图，分别是'front'和'top'
+                    'segm': 里面是单通道的图'front'和'top',对于分割图，物体是0背景是255. 和字典'obj_info'
+                            'obj_info': 例子{'obj_id': 0, 'obj_name': 'container', 'obj_color': 'purple'} 和 {'obj_id': 0, 'obj_name': 'block', 'obj_color': 'red swirl'}
+                    'placeholder_type': 'object'
+    views: 列表['front', 'top']
+    ---
+    输出
+    raw_prompt_token_type: list1 [[0, 0, 1, 0, 0, 1, 0, 0, 0]]
+    word_batch: tensor([5306,    8,  139,    8,    3,    5,    1])
+            word_batch是个list，里面append的是token，token来源是filled_prompt，
+    image_batch: 字典，存储一些图像的tensor
+    """
+    views = sorted(views)  # ['front', 'top']
+    encoding = tokenizer.encode(prompt, add_special_tokens=True)  # {list:9} '_Put','_the','{dragged_obj_1}','_into','_the','{base_obj}',''_'','.','</s>'
+    prompt_ids, prompt_tokens = encoding.ids, encoding.tokens  # prompt_ids:[5306, 8, 32104, 139, 8, 32100, 3, 5, 1], prompt_tokens和上面的encoding一致
     assert set(prompt_assets.keys()) == set(
         [token[1:-1] for token in prompt_tokens if token in PLACEHOLDERS]
     )
     filled_prompt = []
     for id, token in zip(prompt_ids, prompt_tokens):
-        if token not in PLACEHOLDERS:
+        if token not in PLACEHOLDERS:  # PLACEHOLDERS是个list，列表中的内容是一大堆的{}包进去的内容
             assert "{" not in token and "}" not in token
             filled_prompt.append(id)
         else:
             assert token.startswith("{") and token.endswith("}")
             asset_name = token[1:-1]
             assert asset_name in prompt_assets, f"missing prompt asset {asset_name}"
-            asset = prompt_assets[asset_name]
-            obj_info = asset["segm"]["obj_info"]
+            asset = prompt_assets[asset_name]  # asset中有'rgb'和'segm'，'segm'中有'front','top','obj_info'，其中'obj_info':{'obj_id': 0, 'obj_name': 'block', 'obj_color': 'red swirl'}
+            obj_info = asset["segm"]["obj_info"]  # {'obj_id': 0, 'obj_name': 'block', 'obj_color': 'red swirl'}
             placeholder_type = asset["placeholder_type"]
             if placeholder_type == "object":
                 objects = [obj_info["obj_id"]]
@@ -276,6 +375,17 @@ def prepare_prompt(*, prompt: str, prompt_assets: dict, views: list[str]):
                 cropped_imgs = []
                 for obj_id in objects:
                     ys, xs = np.nonzero(segm_this_view == obj_id)
+                    """
+                    可视化检查
+                    """
+                    # -- bkx debug --------------------------------------------
+                    from matplotlib import pyplot as plt
+                    plt.figure()
+                    plt.title('segm_this_view')
+                    plt.imshow(segm_this_view, cmap='jet')
+                    plt.show()
+                    # -- bkx debug --------------------------------------------
+
                     if len(xs) < 2 or len(ys) < 2:
                         continue
                     xmin, xmax = np.min(xs), np.max(xs)
@@ -283,7 +393,7 @@ def prepare_prompt(*, prompt: str, prompt_assets: dict, views: list[str]):
                     x_center, y_center = (xmin + xmax) / 2, (ymin + ymax) / 2
                     h, w = ymax - ymin, xmax - xmin
                     bboxes.append([int(x_center), int(y_center), int(h), int(w)])
-                    cropped_img = rgb_this_view[:, ymin : ymax + 1, xmin : xmax + 1]
+                    cropped_img = rgb_this_view[:, ymin: ymax + 1, xmin: xmax + 1]
                     if cropped_img.shape[1] != cropped_img.shape[2]:
                         diff = abs(cropped_img.shape[1] - cropped_img.shape[2])
                         pad_before, pad_after = int(diff / 2), diff - int(diff / 2)
@@ -374,10 +484,10 @@ def prepare_prompt(*, prompt: str, prompt_assets: dict, views: list[str]):
 
 
 def prepare_obs(
-    *,
-    obs: dict,
-    rgb_dict: dict | None = None,
-    meta: dict,
+        *,
+        obs: dict,
+        rgb_dict: dict | None = None,
+        meta: dict,
 ):
     assert not (rgb_dict is not None and "rgb" in obs)
     rgb_dict = rgb_dict or obs.pop("rgb")
@@ -416,7 +526,7 @@ def prepare_obs(
                 x_center, y_center = (xmin + xmax) / 2, (ymin + ymax) / 2
                 h, w = ymax - ymin, xmax - xmin
                 bboxes.append([int(x_center), int(y_center), int(h), int(w)])
-                cropped_img = rgb_this_view[:, ymin : ymax + 1, xmin : xmax + 1]
+                cropped_img = rgb_this_view[:, ymin: ymax + 1, xmin: xmax + 1]
                 if cropped_img.shape[1] != cropped_img.shape[2]:
                     diff = abs(cropped_img.shape[1] - cropped_img.shape[2])
                     pad_before, pad_after = int(diff / 2), diff - int(diff / 2)
@@ -499,10 +609,15 @@ class TimeLimitWrapper(_TimeLimit):
 
 
 if __name__ == "__main__":
+    # python3 scripts/example.py --ckpt='/data/net/dl_data/ProjectDatasets_bkx/VIMA_pretrained_models/20M.ckpt'
+    #                            --device='cpu'
+    #                            --partition='placement_generalization'
+    #                            --task='visual_manipulation'
     arg = argparse.ArgumentParser()
     arg.add_argument("--partition", type=str, default="placement_generalization")
     arg.add_argument("--task", type=str, default="visual_manipulation")
-    arg.add_argument("--ckpt", type=str, required=True)
-    arg.add_argument("--device", default="cpu")
+    arg.add_argument("--ckpt", type=str,
+                     default='/data/net/dl_data/ProjectDatasets_bkx/VIMA_pretrained_models/20M.ckpt')
+    arg.add_argument("--device", default='cpu')
     arg = arg.parse_args()
     main(arg)

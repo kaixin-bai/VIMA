@@ -42,11 +42,11 @@ class XAttnGPT(OpenAIGPTPreTrainedModel):
 
         super().__init__(cfg)
 
-        self.positions_embed = nn.Embedding(n_positions, embd_dim)
+        self.positions_embed = nn.Embedding(n_positions, embd_dim) # n_positions:512,embd_dim:384; num_embeddings嵌入向量的总数，通常等于类别的数量（例如，词汇表的大小）;embedding_dim：每个嵌入向量的大小或长度
         self.xattn_positions_embed = nn.Embedding(xattn_n_positions, embd_dim)
-        self.drop = nn.Dropout(cfg.embd_pdrop)
+        self.drop = nn.Dropout(cfg.embd_pdrop)  # embd_pdrop:0.1
         self.h = nn.ModuleList(
-            [Block(n_positions, cfg, scale=True) for _ in range(n_layer)]
+            [Block(n_positions, cfg, scale=True) for _ in range(n_layer)]  # n_positions:512  n_layer:4
         )
         self.xattns = nn.ModuleList(
             [

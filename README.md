@@ -162,3 +162,29 @@ hint: See above for details.
 pip install setuptools==57.5.0  # csdn上提供的方法 
 ```
 
+# 代码笔记
+在`example_debug.py`中，`policy = create_policy_from_ckpt(cfg.ckpt, cfg.device)`进入读取预训练模型函数，其中的`policy_instance`是`VIMAPolicy`.  \
+在进入到`class VIMAPolicy`之后，可以看到以下内容：
+```python
+self.xattn_gpt = vnn.XAttnGPT(
+    embed_dim,
+    n_layer=xf_n_layers,
+    n_head=sattn_n_heads,
+    dropout=0.1,
+    xattn_n_head=xattn_n_heads,
+    xattn_ff_expanding=4,
+    xattn_n_positions=256,
+    use_geglu=True,
+)
+# =============================================================================================
+tokens_out = self.xattn_gpt(
+    obs_action_tokens=tokens,
+    prompt_tokens=prompt_token,
+    prompt_mask=prompt_token_mask,
+    obs_action_masks=masks.transpose(0, 1),
+    obs_action_position_ids=position_ids.transpose(0, 1),
+    prompt_position_ids=prompt_position_ids,
+)
+predicted_action_tokens = tokens_out[n_max_objs - 1 :: n_max_objs + 1]
+```
+然后我们详细看一下这个`XAttnGPT`

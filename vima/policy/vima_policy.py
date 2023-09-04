@@ -5,17 +5,17 @@ import torch.nn as nn
 from einops import rearrange
 
 import vima.nn as vnn
-from ..utils import *
+from ..utils import any_concat, any_to_torch_tensor
 
 
 class VIMAPolicy(nn.Module):
     def __init__(
         self,
         *,
-        embed_dim: int,
-        xf_n_layers: int,
-        sattn_n_heads: int,
-        xattn_n_heads: int,
+        embed_dim: int,  # 384
+        xf_n_layers: int,  # 4
+        sattn_n_heads: int,  # 12
+        xattn_n_heads: int,  # 12
     ):
         super().__init__()
 
