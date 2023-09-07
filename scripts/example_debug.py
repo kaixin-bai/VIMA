@@ -190,6 +190,7 @@ def main(cfg):
                                在'dragged_obj_1'-'segm'下面的'obj_info'，内容为：{'obj_id': 0, 'obj_name': 'block', 'obj_color': 'red swirl'}
                 """
                 print("debug prompt: {}".format(prompt))
+                # todo: prepare_prompt的输出在在函数内部我有写
                 prompt_token_type, word_batch, image_batch = prepare_prompt(
                     prompt=prompt, prompt_assets=prompt_assets, views=["front", "top"]
                 )
@@ -205,9 +206,36 @@ def main(cfg):
                 inference_cache["action_tokens"] = []
             obs["ee"] = np.asarray(obs["ee"])
             obs = add_batch_dim(obs)
+            # todo: meta_info是怎么来的，来自于env.meta_info，所有的都是已知信息
+            # meta_info: {'end_effector_type': 'suction',
+            #               'n_objects': 3,
+            #               'difficulty': 'easy',
+            #               'views': ['front', 'top'],
+            #               'modalities': ['segm', 'rgb'],
+            #               'seed': 42,
+            #               'action_bounds': {'low': array([ 0.25, -0.5 ], dtype=float32), 'high': array([0.75, 0.5 ], dtype=float32)}, # todo: 这个是怎么来的？
+            #               'robot_components': [2, 3, 4],
+            #               'obj_id_to_info':
+            #                       {5: {'obj_name': 'container', 'obj_assets': 'container/container-template.urdf', 'obj_size_range': SizeRange(low=(0.15, 0.15, 0.05), high=(0.17, 0.17, 0.05)), 'obj_from_template': True, 'obj_replace_fn': <function container_replace_fn at 0x7f8650339790>, 'obj_pose_transform_fn': None, 'obj_alias': None, 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': None, 'obj_profile': <ProfilePedia.SQUARE_LIKE: 0>, 'texture_name': 'purple', 'texture_color_value': (0.6901960784313725, 0.47843137254901963, 0.6313725490196078), 'texture_texture_asset': None, 'texture_alias': None, 'texture_novel_name': None},
+            #                       6: {'obj_name': 'block', 'obj_assets': 'stacking/block.urdf', 'obj_size_range': SizeRange(low=(0.07, 0.07, 0.07), high=(0.07, 0.07, 0.07)), 'obj_from_template': True, 'obj_replace_fn': None, 'obj_pose_transform_fn': None, 'obj_alias': ['cube'], 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': 0.7853981633974483, 'obj_profile': <ProfilePedia.SQUARE_LIKE: 0>, 'texture_name': 'red swirl', 'texture_color_value': None, 'texture_texture_asset': '/home/kb/gpu02_project/VIMA/VIMABench/vima_bench/tasks/assets/textures/swirls/red_swirl.jpg', 'texture_alias': None, 'texture_novel_name': None},
+            #                       7: {'obj_name': 'bowl', 'obj_assets': 'bowl/bowl.urdf', 'obj_size_range': SizeRange(low=(0.17, 0.17, 0), high=(0.17, 0.17, 0)), 'obj_from_template': False, 'obj_replace_fn': None, 'obj_pose_transform_fn': None, 'obj_alias': None, 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': 0, 'obj_profile': <ProfilePedia.CIRCLE_LIKE: 1>, 'texture_name': 'yellow', 'texture_color_value': (0.9294117647058824, 0.788235294117647, 0.2823529411764706), 'texture_texture_asset': None, 'texture_alias': None, 'texture_novel_name': None}}}
+
+            # ==================================================
+            # ============== bkx debug =========================
+            # todo: action_bounds的具体含义！
+            """
+            这个部分是作debug用的，可以看到其实改成None之后不影响运行，看起来是不太重要
+            """
+            obs['robot_components'] = None
+            obs['obj_id_to_info'] = None
+            # ============== bkx debug =========================
+            # ==================================================
+
             obs = prepare_obs(obs=obs, rgb_dict=None, meta=meta_info).to_torch_tensor(
                 device=cfg.device
             )
+            # obs_token_this_step: [1,1,6] tensor([[[True, True, True, True, True, True]]])
+            # obs_mask_this_step: [1,1,6,384]
             obs_token_this_step, obs_mask_this_step = policy.forward_obs_token(obs)
             obs_token_this_step = obs_token_this_step.squeeze(0)
             obs_mask_this_step = obs_mask_this_step.squeeze(0)
@@ -273,12 +301,27 @@ def main(cfg):
                 0
             )  # (1, B, E)
             dist_dict = policy.forward_action_decoder(predicted_action_tokens)
-            # todo: actions里面东西的物理含义，position和rotation是什么坐标系下的
+            # actions里面东西的物理含义，position和rotation是什么坐标系下的
+            """
+            这里的actions不是最后机器人执行的动作，而是动作的编码，todo: 数值上的含义是什么？
+            actions:
+              'pose0_position': Tensor:(1,1,2) tensor([[[16, 35]]])
+              'pose0_rotation': Tensor:(1,1,4) tensor([[[25, 25, 25, 49]]])
+              'pose1_position': Tensor:(1,1,2) tensor([[[13, 85]]])
+              'pose1_rotation': Tensor:(1,1,4) tensor([[[25, 25, 49, 19]]])
+            """
             actions = {k: v.mode() for k, v in dist_dict.items()}
             action_tokens = policy.forward_action_token(actions)  # (1, B, E)
             action_tokens = action_tokens.squeeze(0)  # (B, E)
             inference_cache["action_tokens"].append(action_tokens[0])
             # todo: 这个函数在做什么
+            """
+            actions:
+              'pose0_position': Tensor:(1,1,2) tensor([[[0.3200, 0.3500]]])
+              'pose0_rotation': Tensor:(1,1,4) tensor([[[0.5000, 0.5000, 0.5000, 0.9800]]])
+              'pose1_position': Tensor:(1,1,2) tensor([[[0.2600, 0.8500]]])
+              'pose1_rotation': Tensor:(1,1,4) tensor([[[0.5000, 0.5000, 0.9800, 0.3800]]])
+            """
             actions = policy._de_discretize_actions(actions)
             action_bounds = [meta_info["action_bounds"]]
             action_bounds_low = [action_bound["low"] for action_bound in action_bounds]
@@ -293,6 +336,7 @@ def main(cfg):
             action_bounds_high = torch.tensor(
                 action_bounds_high, dtype=torch.float32, device=cfg.device
             )
+            # todo: 这里是什么？？？很重要，如何解码成机器人最终运动位置的！！！
             actions["pose0_position"] = (
                     actions["pose0_position"] * (action_bounds_high - action_bounds_low)
                     + action_bounds_low
@@ -301,6 +345,7 @@ def main(cfg):
                     actions["pose1_position"] * (action_bounds_high - action_bounds_low)
                     + action_bounds_low
             )
+            # actions["pose0_position"]的值在给定的上下界action_bounds_low和action_bounds_high之间，大于最大值和小于最小值的都会被设置为最值。
             actions["pose0_position"] = torch.clamp(
                 actions["pose0_position"], min=action_bounds_low, max=action_bounds_high
             )
@@ -318,6 +363,14 @@ def main(cfg):
             actions = {k: v.cpu().numpy() for k, v in actions.items()}
             actions = any_slice(actions, np.s_[0, 0])
             # 动作是在下面这行被执行的，todo: 看actions在step中是如何被使用的
+            """
+            对于pick and place任务来说，这里actions传入到了'VIMA/VIMABench/vima_bench/tasks/components/action_primitives.'
+            actions: 
+              'pose0_position': [ 0.41 -0.15]
+              'pose0_rotation': [0.         0.         0.         0.96000004]
+              'pose1_position': [0.38       0.35000002]
+              'pose1_rotation': [ 0.          0.          0.96000004 -0.24000001]
+            """
             obs, _, done, info = env.step(actions)
             elapsed_steps += 1
             if done:
@@ -378,13 +431,13 @@ def prepare_prompt(*, prompt: str, prompt_assets: dict, views: list[str]):
                     """
                     可视化检查
                     """
-                    # -- bkx debug --------------------------------------------
-                    from matplotlib import pyplot as plt
-                    plt.figure()
-                    plt.title('segm_this_view')
-                    plt.imshow(segm_this_view, cmap='jet')
-                    plt.show()
-                    # -- bkx debug --------------------------------------------
+                    # # -- bkx debug --------------------------------------------
+                    # from matplotlib import pyplot as plt
+                    # plt.figure()
+                    # plt.title('segm_this_view')
+                    # plt.imshow(segm_this_view, cmap='jet')
+                    # plt.show()
+                    # # -- bkx debug --------------------------------------------
 
                     if len(xs) < 2 or len(ys) < 2:
                         continue
@@ -489,14 +542,31 @@ def prepare_obs(
         rgb_dict: dict | None = None,
         meta: dict,
 ):
+    """
+    obs: dict, {'ee': array([0])}
+    rgb_dict: dict2, 'front', 'top', [1,3,128,256]
+    meta: dict,
+        {'end_effector_type': 'suction',
+        'n_objects': 3,
+        'difficulty': 'easy',
+        'views': ['front', 'top'],
+        'modalities': ['segm', 'rgb'],
+        'seed': 42,
+        'action_bounds': {'low': array([ 0.25, -0.5 ], dtype=float32), 'high': array([0.75, 0.5 ], dtype=float32)},
+        'robot_components': [2, 3, 4],
+        'obj_id_to_info':
+            {5: {'obj_name': 'container', 'obj_assets': 'container/container-template.urdf', 'obj_size_range': SizeRange(low=(0.15, 0.15, 0.05), high=(0.17, 0.17, 0.05)), 'obj_from_template': True, 'obj_replace_fn': <function container_replace_fn at 0x7f834a83d940>, 'obj_pose_transform_fn': None, 'obj_alias': None, 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': None, 'obj_profile': <ProfilePedia.SQUARE_LIKE: 0>, 'texture_name': 'purple', 'texture_color_value': (0.6901960784313725, 0.47843137254901963, 0.6313725490196078), 'texture_texture_asset': None, 'texture_alias': None, 'texture_novel_name': None},
+            6: {'obj_name': 'block', 'obj_assets': 'stacking/block.urdf', 'obj_size_range': SizeRange(low=(0.07, 0.07, 0.07), high=(0.07, 0.07, 0.07)), 'obj_from_template': True, 'obj_replace_fn': None, 'obj_pose_transform_fn': None, 'obj_alias': ['cube'], 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': 0.7853981633974483, 'obj_profile': <ProfilePedia.SQUARE_LIKE: 0>, 'texture_name': 'red swirl', 'texture_color_value': None, 'texture_texture_asset': '/home/kb/gpu02_project/VIMA/VIMABench/vima_bench/tasks/assets/textures/swirls/red_swirl.jpg', 'texture_alias': None, 'texture_novel_name': None},
+            7: {'obj_name': 'bowl', 'obj_assets': 'bowl/bowl.urdf', 'obj_size_range': SizeRange(low=(0.17, 0.17, 0), high=(0.17, 0.17, 0)), 'obj_from_template': False, 'obj_replace_fn': None, 'obj_pose_transform_fn': None, 'obj_alias': None, 'obj_novel_name': None, 'obj_template_file': None, 'obj_symmetry': 0, 'obj_profile': <ProfilePedia.CIRCLE_LIKE: 1>, 'texture_name': 'yellow', 'texture_color_value': (0.9294117647058824, 0.788235294117647, 0.2823529411764706), 'texture_texture_asset': None, 'texture_alias': None, 'texture_novel_name': None}}}
+    """
     assert not (rgb_dict is not None and "rgb" in obs)
     rgb_dict = rgb_dict or obs.pop("rgb")
     segm_dict = obs.pop("segm")
-    views = sorted(rgb_dict.keys())
+    views = sorted(rgb_dict.keys())  # ['front', 'top']
     assert meta["n_objects"] == len(meta["obj_id_to_info"])
-    objects = list(meta["obj_id_to_info"].keys())
+    objects = list(meta["obj_id_to_info"].keys())  # [5,6,7],这里是分割图中三个物体的index
 
-    L_obs = get_batch_size(obs)
+    L_obs = get_batch_size(obs)  # 1
 
     obs_list = {
         "ee": obs["ee"],

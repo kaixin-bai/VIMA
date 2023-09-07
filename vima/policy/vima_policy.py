@@ -241,6 +241,7 @@ class VIMAPolicy(nn.Module):
 
     def forward_obs_token(self, obs):
         objects, ee = obs["objects"], obs["ee"]
+        debug_objects = dict(objects)
         leading_dims = ee.shape[:2]
 
         objects = objects.map_structure(func=lambda x: x.reshape(-1, *x.shape[2:]))
